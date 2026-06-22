@@ -42,46 +42,48 @@ dependencies = open(dependenciesFile, "rt")
 dependents = open(dependentsFile, "rt")
 
 try:
-    os.mkdir(outFolderPath)
+    os.makedirs(outFolderPath, exist_ok=True)
 except FileExistsError:
     print("Error: Output folder already exists!")
+else:
+    # data holder
+    pkgInfo = {
+        "name":"",
+        "description":"",
+        "dependencies":"",
+        "dependents":""
+    }
 
-# data holder
-fileInfo = {
-    "name":"",
-    "description":"",
-    "dependencies":"",
-    "dependents":""
-}
+    while True:
+        # extract each file's data
+        pkgInfo["name"]=packages.readline().rstrip('\n')
+        pkgInfo["description"]=descriptions.readline().rstrip('\n')
+        pkgInfo["dependencies"]=dependencies.readline().rstrip('\n')
+        pkgInfo["dependents"]=dependents.readline().rstrip('\n')
 
-while True:
-    # extract each file's data
-    fileInfo["name"]=packages.readline().rstrip('\n')
-    fileInfo["description"]=descriptions.readline().rstrip('\n')
-    fileInfo["dependencies"]=dependencies.readline().rstrip('\n')
-    fileInfo["dependents"]=dependents.readline().rstrip('\n')
-    explicitInstall=subprocess.run(["pacman", "-Qqe",fileInfo["name"]]).returncode==0
-    
-    # surround packages with [[]] for formatting and separate with commas for neatness
-    if fileInfo["dependencies"] != "None":
-        dependenciesItemized = ", ".join(f"[[{pkg}]]" for pkg in fileInfo["dependencies"].split())
-    if fileInfo["dependents"] != "None":
-        dependentsItemized = ", ".join(f"[[{pkg}]]" for pkg in fileInfo["dependents"].split())
+        if pkgInfo["name"]=="":
+            break
+        
+        explicitInstall=subprocess.run(["pacman", "-Qqe", pkgInfo["name"]], stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
+        
+        # surround packages with [[]] for formatting and separate with commas for neatness
+        if pkgInfo["dependencies"] != "None":
+            dependenciesItemized = ", ".join(f"[[{pkg}]]" for pkg in pkgInfo["dependencies"].split())
+        if pkgInfo["dependents"] != "None":
+            dependentsItemized = ", ".join(f"[[{pkg}]]" for pkg in pkgInfo["dependents"].split())
 
-    with open(outFolderPath+'/'+fileInfo["name"]+'.md', "w", encoding="utf-8") as newFile:
-        print("Created file for:", fileInfo["name"], "    E =", explicitInstall)
-        newFile.writelines([
-                '### '+fileInfo["description"],
-                "\n\nRequires:\n",
-                dependenciesItemized,
-                "\nRequired by:\n",
-                dependentsItemized
-                ])
-
-    if fileInfo["name"]=="":
-        break
-
-packages.close()
-descriptions.close()
-dependencies.close()
-dependents.close()
+        with open(outFolderPath+'/'+pkgInfo["name"]+'.md', "w", encoding="utf-8") as newFile:
+            print("Created:", pkgInfo["name"], "    E =", explicitInstall)
+            newFile.writelines([
+                    '### '+pkgInfo["description"],
+                    "\n\nRequires:\n",
+                    dependenciesItemized,
+                    "\nRequired by:\n",
+                    dependentsItemized,
+                    "\n#explicitInstall" if explicitInstall else "\n#depInstall"
+                    ])
+finally:
+    packages.close()
+    descriptions.close()
+    dependencies.close()
+    dependents.close()
